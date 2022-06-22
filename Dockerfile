@@ -1,11 +1,25 @@
-FROM python:3.6.9-alpine
-WORKDIR /code
+# alpine python
+FROM alpine:3.8
 
-RUN apk --update --upgrade add --no-cache  gcc musl-dev jpeg-dev zlib-dev libffi-dev cairo-dev pango-dev gdk-pixbuf-dev
+RUN apk add --no-cache python3 && \
+    python3 -m ensurepip && \
+    rm -r /usr/lib/python*/ensurepip && \
+    pip3 install --upgrade pip setuptools && \
+    if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
+    if [[ ! -e /usr/bin/python ]]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
+    rm -r /root/.cache
 
-RUN python -m pip install --upgrade pip
-COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+# flask app
+COPY ./ /app/
+
+WORKDIR /app
+
+RUN find -name "*.pyc" -delete && \
+    pip3 install -r requirements.txt
+
 EXPOSE 5000
-COPY . .
-CMD [ "flask", "run" ]
+
+ENV DD_SERVICE="bmi"
+ENV DD_ENV="dev"
+ENV DD_LOGS_INJECTION=true
+CMD ["ddtrace-run", "python3", "app.py"]
